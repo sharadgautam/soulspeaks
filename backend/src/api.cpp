@@ -5,6 +5,7 @@
 #include <random>
 #include <sstream>
 #include "hash.hpp"
+#include <cppconn/prepared_statement.h>
 
 using json = nlohmann::json;
 

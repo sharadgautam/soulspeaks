@@ -23,8 +23,7 @@ int main() {
         std::cout << "Server running on port 9080..." << std::endl;
         server.serve();
     } catch (const std::exception& e) {
-        std::string err = std::string("{\"success\":false,\"error\":\"") + e.what() + "\"}";
-        response.send(Pistache::Http::Code::Internal_Server_Error, err);
+        std::cerr << "Error: " << e.what() << std::endl;
         return 1;
     }
     return 0;

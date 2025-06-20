@@ -3,9 +3,13 @@ project(soulspeaks_backend)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# Remove find_package commands since we'll link manually
+# Find required libraries
 find_package(nlohmann_json 3.2.0 REQUIRED)
-find_package(OpenSSL REQUIRED)
+find_package(Threads REQUIRED)
+
+# Manually specify include directories and library paths
+include_directories(/usr/include/pistache)
+include_directories(/usr/include/mysql-cppconn)
 
 # Include directories
 include_directories(
@@ -21,10 +25,13 @@ add_executable(backend
     src/hash.cpp
 )
 
-target_link_libraries(backend
+target_link_libraries(backend PRIVATE
     pistache
-    mysqlcppconn
     nlohmann_json::nlohmann_json
-    OpenSSL::SSL 
-    OpenSSL::Crypto
-) 
+    ${CMAKE_THREAD_LIBS_INIT}
+    mysqlcppconn
+    -lssl
+    -lcrypto
+)
+
+install(TARGETS backend DESTINATION bin) 

@@ -1,4 +1,5 @@
 #include "api.hpp"
+#include <iostream>
 #include <pistache/http.h>
 #include <pistache/router.h>
 #include <nlohmann/json.hpp>
@@ -51,13 +52,29 @@ void ApiHandler::handleDidBuy(const Pistache::Http::Request& request, Pistache::
 }
 
 void ApiHandler::handleSignup(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response) {
+    std::cout << "--- SIGNUP REQUEST RECEIVED ---" << std::endl;
+    std::cout << "Request Body: " << request.body() << std::endl;
+
     auto body = json::parse(request.body(), nullptr, false);
-    if (!body.is_object() || !body.contains("company") || !body.contains("name") || !body.contains("email") ||
-        !body.contains("phone") || !body.contains("country") || !body.contains("state") ||
-        !body.contains("address") || !body.contains("zip") || !body.contains("password")) {
+    if (body.is_discarded()) {
+        std::cout << "Error: JSON parsing failed. The request body is not valid JSON." << std::endl;
+        response.send(Pistache::Http::Code::Bad_Request, R"({"success":false,"error":"Invalid JSON format"})");
+        return;
+    }
+
+    std::cout << "Parsed JSON: " << body.dump(4) << std::endl;
+
+    if (!body.is_object() || !body.contains("username") || !body.contains("email") || !body.contains("password")) {
+        std::cout << "Error: Validation failed. Missing required fields." << std::endl;
+        std::cout << "Has username: " << std::boolalpha << body.contains("username") << std::endl;
+        std::cout << "Has email: " << std::boolalpha << body.contains("email") << std::endl;
+        std::cout << "Has password: " << std::boolalpha << body.contains("password") << std::endl;
         response.send(Pistache::Http::Code::Bad_Request, R"({"success":false,"error":"Invalid request"})");
         return;
     }
+    
+    std::cout << "Validation successful. Proceeding with signup..." << std::endl;
+    
     // Generate random 8-digit customer ID
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -71,22 +88,15 @@ void ApiHandler::handleSignup(const Pistache::Http::Request& request, Pistache::
     try {
         auto con = db_.getConnection();
         std::unique_ptr<sql::PreparedStatement> stmt(con->prepareStatement(
-            "INSERT INTO customers (customer_id, company, name, email, phone, country, state, address, zip, password_hash, salt, verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
+            "INSERT INTO customers (customer_id, name, email, password_hash, salt, verified) VALUES (?, ?, ?, ?, ?, 0)"
         ));
         stmt->setInt(1, customer_id);
-        stmt->setString(2, body["company"].get<std::string>());
-        stmt->setString(3, body["name"].get<std::string>());
-        stmt->setString(4, body["email"].get<std::string>());
-        stmt->setString(5, body["phone"].get<std::string>());
-        stmt->setString(6, body["country"].get<std::string>());
-        stmt->setString(7, body["state"].get<std::string>());
-        stmt->setString(8, body["address"].get<std::string>());
-        stmt->setString(9, body["zip"].get<std::string>());
-        stmt->setString(10, password_hash);
-        stmt->setString(11, salt);
+        stmt->setString(2, body["username"].get<std::string>());
+        stmt->setString(3, body["email"].get<std::string>());
+        stmt->setString(4, password_hash);
+        stmt->setString(5, salt);
         stmt->execute();
-        // Placeholder: send verification email
-        // sendVerificationEmail(body["email"], customer_id);
+        
         response.send(Pistache::Http::Code::Ok, R"({"success":true})");
     } catch (const std::exception& e) {
         response.send(Pistache::Http::Code::Internal_Server_Error, R"({"success":false,"error":"Signup failed"})");

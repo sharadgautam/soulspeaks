@@ -1,10 +1,9 @@
-#pragma once
+#ifndef DB_HPP
+#define DB_HPP
+
 #include <mysql_driver.h>
 #include <mysql_connection.h>
-#include <cppconn/statement.h>
-#include <cppconn/resultset.h>
 #include <cppconn/prepared_statement.h>
-#include <memory>
 
 class Database {
 public:
@@ -12,4 +11,6 @@ public:
     std::shared_ptr<sql::Connection> getConnection();
 private:
     std::string host_, user_, password_, db_;
-}; 
+};
+
+#endif

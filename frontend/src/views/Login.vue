@@ -17,6 +17,8 @@
 </template>
 
 <script>
+import axios from 'axios';
+
 export default {
   name: 'Login',
   data() {
@@ -29,7 +31,19 @@ export default {
   methods: {
     async onLogin() {
       this.error = '';
-      this.$emit('login', { username: this.username, password: this.password });
+      try {
+        const res = await axios.post('/api/login', {
+          username: this.username,
+          password: this.password
+        });
+        if (res.data.success) {
+          this.$router.push('/dashboard');
+        } else {
+          this.error = res.data.error || 'Login failed.';
+        }
+      } catch (e) {
+        this.error = 'Login failed.';
+      }
     }
   }
 };

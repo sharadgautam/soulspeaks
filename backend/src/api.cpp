@@ -52,17 +52,29 @@ void ApiHandler::handleDidBuy(const Pistache::Http::Request& request, Pistache::
 }
 
 void ApiHandler::handleSignup(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response) {
+    std::cout << "--- SIGNUP REQUEST RECEIVED ---" << std::endl;
+    std::cout << "Request Body: " << request.body() << std::endl;
+
     auto body = json::parse(request.body(), nullptr, false);
     if (body.is_discarded()) {
+        std::cout << "Error: JSON parsing failed." << std::endl;
         response.send(Pistache::Http::Code::Bad_Request, R"({"success":false,"error":"Invalid JSON format"})");
         return;
     }
 
+    std::cout << "Parsed JSON: " << body.dump(4) << std::endl;
+
     if (!body.is_object() || !body.contains("username") || !body.contains("email") || !body.contains("password")) {
+        std::cout << "Error: Validation failed. Missing required fields." << std::endl;
+        std::cout << "Has username: " << std::boolalpha << body.contains("username") << std::endl;
+        std::cout << "Has email: " << std::boolalpha << body.contains("email") << std::endl;
+        std::cout << "Has password: " << std::boolalpha << body.contains("password") << std::endl;
         response.send(Pistache::Http::Code::Bad_Request, R"({"success":false,"error":"Invalid request"})");
         return;
     }
     
+    std::cout << "Validation successful. Proceeding with signup..." << std::endl;
+
     // Generate random 8-digit customer ID
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -87,8 +99,7 @@ void ApiHandler::handleSignup(const Pistache::Http::Request& request, Pistache::
         
         response.send(Pistache::Http::Code::Ok, R"({"success":true})");
     } catch (const std::exception& e) {
-        // It's good practice to log the error on the server, but we won't send it to the client.
-        std::cerr << "Signup failed: " << e.what() << std::endl;
+        std::cerr << "!!! DATABASE ERROR: " << e.what() << std::endl;
         response.send(Pistache::Http::Code::Internal_Server_Error, R"({"success":false,"error":"Signup failed"})");
     }
 } 

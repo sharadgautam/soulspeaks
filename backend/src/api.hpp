@@ -15,4 +15,5 @@ private:
     void handleDidBuy(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
     void handleSignup(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
     void handleListUsers(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
+    void handleMe(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
 }; 

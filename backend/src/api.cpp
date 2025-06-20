@@ -7,8 +7,12 @@
 #include <sstream>
 #include "hash.hpp"
 #include <cppconn/prepared_statement.h>
+#include "jwt.h"
 
 using json = nlohmann::json;
+
+// Use the same strong secret for both signing and verifying JWTs
+#define SOULSPEAKS_JWT_SECRET "a8f3b2c1d4e5f6g7h8i9j0k1l2m3n4o5"
 
 ApiHandler::ApiHandler(Database& db) : db_(db) {}
 
@@ -23,6 +27,8 @@ void ApiHandler::onRequest(const Pistache::Http::Request& request, Pistache::Htt
         handleSignup(request, std::move(response));
     } else if (request.resource() == "/api/users" && request.method() == Pistache::Http::Method::Get) {
         handleListUsers(request, std::move(response));
+    } else if (request.resource() == "/api/me" && request.method() == Pistache::Http::Method::Get) {
+        handleMe(request, std::move(response));
     } else {
         response.send(Pistache::Http::Code::Not_Found, "Endpoint not found");
     }
@@ -54,8 +60,17 @@ void ApiHandler::handleLogin(const Pistache::Http::Request& request, Pistache::H
             std::string provided_password_hash = hashPassword(password, db_salt);
             
             if (provided_password_hash == db_password_hash) {
-                // Passwords match
-                response.send(Pistache::Http::Code::Ok, R"({"success":true})");
+                // Passwords match - generate JWT
+                auto token = jwt::create()
+                    .set_issuer("soulspeaks")
+                    .set_type("JWS")
+                    .set_payload_claim("username", jwt::claim(username))
+                    .set_issued_at(std::chrono::system_clock::now())
+                    .set_expires_at(std::chrono::system_clock::now() + std::chrono::hours{24})
+                    .sign(jwt::algorithm::hs256{SOULSPEAKS_JWT_SECRET});
+                json resp = {{"success", true}, {"token", token}};
+                response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+                response.send(Pistache::Http::Code::Ok, resp.dump());
             } else {
                 // Passwords do not match
                 response.send(Pistache::Http::Code::Unauthorized, R"({"success":false,"error":"Invalid credentials"})");
@@ -155,5 +170,47 @@ void ApiHandler::handleListUsers(const Pistache::Http::Request& /*request*/, Pis
     } catch (const std::exception& e) {
         std::cerr << "!!! DATABASE ERROR: " << e.what() << std::endl;
         response.send(Pistache::Http::Code::Internal_Server_Error, R"({"success":false,"error":"Failed to retrieve users"})");
+    }
+}
+
+void ApiHandler::handleMe(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response) {
+    // Require JWT in Authorization header
+    auto authHeader = request.headers().tryGetRaw("Authorization");
+    if (!authHeader || !authHeader.get().starts_with("Bearer ")) {
+        response.send(Pistache::Http::Code::Unauthorized, R"({"success":false,"error":"Missing or invalid Authorization header"})");
+        return;
+    }
+    std::string token = authHeader.get().substr(7);
+    std::string username;
+    try {
+        auto decoded = jwt::decode(token);
+        auto verifier = jwt::verify()
+            .allow_algorithm(jwt::algorithm::hs256{SOULSPEAKS_JWT_SECRET})
+            .with_issuer("soulspeaks");
+        verifier.verify(decoded);
+        username = decoded.get_payload_claim("username").as_string();
+    } catch (const std::exception& e) {
+        response.send(Pistache::Http::Code::Unauthorized, R"({"success":false,"error":"Invalid token"})");
+        return;
+    }
+    try {
+        auto con = db_.getConnection();
+        std::unique_ptr<sql::PreparedStatement> stmt(con->prepareStatement(
+            "SELECT name, email FROM customers WHERE name = ? AND verified = 1"
+        ));
+        stmt->setString(1, username);
+        std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+        if (res->next()) {
+            json user;
+            user["username"] = res->getString("name");
+            user["email"] = res->getString("email");
+            response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+            response.send(Pistache::Http::Code::Ok, user.dump());
+        } else {
+            response.send(Pistache::Http::Code::Not_Found, R"({"success":false,"error":"User not found"})");
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "!!! DATABASE ERROR: " << e.what() << std::endl;
+        response.send(Pistache::Http::Code::Internal_Server_Error, R"({"success":false,"error":"Failed to fetch user info"})");
     }
 } 

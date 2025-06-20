@@ -37,6 +37,9 @@ export default {
           password: this.password
         });
         if (res.data.success) {
+          if (res.data.token) {
+            localStorage.setItem('jwt', res.data.token);
+          }
           this.$router.push('/dashboard');
         } else {
           this.error = res.data.error || 'Login failed.';

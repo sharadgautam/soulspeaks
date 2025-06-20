@@ -14,5 +14,4 @@ private:
     void handleDidSearch(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
     void handleDidBuy(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
     void handleSignup(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
-    void handleVerify(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
 }; 

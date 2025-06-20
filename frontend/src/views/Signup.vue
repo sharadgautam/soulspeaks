@@ -15,6 +15,10 @@
         <input v-model="form.email" type="email" required />
       </div>
       <div>
+        <label>Username</label>
+        <input v-model="form.username" required />
+      </div>
+      <div>
         <label>Phone</label>
         <input v-model="form.phone" required />
       </div>
@@ -64,7 +68,7 @@ export default {
   data() {
     return {
       form: {
-        company: '', name: '', email: '', phone: '', country: '', state: '', address: '', zip: '', password: ''
+        company: '', name: '', email: '', phone: '', country: '', state: '', address: '', zip: '', password: '', username: ''
       },
       countries: [
         { code: 'US', name: 'United States' },

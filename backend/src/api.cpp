@@ -21,6 +21,8 @@ void ApiHandler::onRequest(const Pistache::Http::Request& request, Pistache::Htt
         handleDidBuy(request, std::move(response));
     } else if (request.resource() == "/api/signup" && request.method() == Pistache::Http::Method::Post) {
         handleSignup(request, std::move(response));
+    } else if (request.resource() == "/api/verify" && request.method() == Pistache::Http::Method::Post) {
+        handleVerify(request, std::move(response));
     } else {
         response.send(Pistache::Http::Code::Not_Found, "Endpoint not found");
     }
@@ -81,6 +83,11 @@ void ApiHandler::handleSignup(const Pistache::Http::Request& request, Pistache::
     std::uniform_int_distribution<> dis(10000000, 99999999);
     int customer_id = dis(gen);
 
+    // Generate verification code (6-digit)
+    std::uniform_int_distribution<> code_dis(100000, 999999);
+    int verification_code = code_dis(gen);
+    std::string verification_code_str = std::to_string(verification_code);
+
     // Generate salt and hash password
     std::string salt = generateSalt();
     std::string password_hash = hashPassword(body["password"].get<std::string>(), salt);
@@ -88,18 +95,56 @@ void ApiHandler::handleSignup(const Pistache::Http::Request& request, Pistache::
     try {
         auto con = db_.getConnection();
         std::unique_ptr<sql::PreparedStatement> stmt(con->prepareStatement(
-            "INSERT INTO customers (customer_id, name, email, password_hash, salt, verified) VALUES (?, ?, ?, ?, ?, 0)"
+            "INSERT INTO customers (customer_id, name, email, password_hash, salt, verified, verification_code) VALUES (?, ?, ?, ?, ?, 0, ?)"
         ));
         stmt->setInt(1, customer_id);
         stmt->setString(2, body["username"].get<std::string>());
         stmt->setString(3, body["email"].get<std::string>());
         stmt->setString(4, password_hash);
         stmt->setString(5, salt);
+        stmt->setString(6, verification_code_str);
         stmt->execute();
+        
+        // TODO: Send verification email using SMTP
+        // For now, just log the verification code
+        std::cout << "=== VERIFICATION EMAIL INFO ===" << std::endl;
+        std::cout << "To: " << body["email"].get<std::string>() << std::endl;
+        std::cout << "Subject: Welcome to SoulSpeaks - Verify Your Account" << std::endl;
+        std::cout << "Verification Code: " << verification_code_str << std::endl;
+        std::cout << "Verification Link: http://localhost:8081/verify?code=" << verification_code_str << std::endl;
+        std::cout << "===============================" << std::endl;
         
         response.send(Pistache::Http::Code::Ok, R"({"success":true})");
     } catch (const std::exception& e) {
         std::cerr << "!!! DATABASE ERROR: " << e.what() << std::endl;
         response.send(Pistache::Http::Code::Internal_Server_Error, R"({"success":false,"error":"Signup failed"})");
+    }
+}
+
+void ApiHandler::handleVerify(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response) {
+    auto body = json::parse(request.body(), nullptr, false);
+    if (body.is_discarded() || !body.is_object() || !body.contains("code")) {
+        response.send(Pistache::Http::Code::Bad_Request, R"({"success":false,"error":"Invalid request"})");
+        return;
+    }
+
+    std::string verification_code = body["code"].get<std::string>();
+
+    try {
+        auto con = db_.getConnection();
+        std::unique_ptr<sql::PreparedStatement> stmt(con->prepareStatement(
+            "UPDATE customers SET verified = 1 WHERE verification_code = ? AND verified = 0"
+        ));
+        stmt->setString(1, verification_code);
+        int rows_affected = stmt->executeUpdate();
+        
+        if (rows_affected > 0) {
+            response.send(Pistache::Http::Code::Ok, R"({"success":true,"message":"Account verified successfully"})");
+        } else {
+            response.send(Pistache::Http::Code::Bad_Request, R"({"success":false,"error":"Invalid or expired verification code"})");
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "!!! DATABASE ERROR: " << e.what() << std::endl;
+        response.send(Pistache::Http::Code::Internal_Server_Error, R"({"success":false,"error":"Verification failed"})");
     }
 } 

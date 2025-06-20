@@ -7,7 +7,7 @@ using namespace Pistache;
 
 int main() {
     try {
-        Database db("tcp://127.0.0.1:3306", "soulspeaksdb", "94019401", "soulspeaks");
+        Database db("tcp://127.0.0.1:9080", "soulspeaksdb", "94019401", "soulspeaks");
         // Test DB connection
         auto con = db.getConnection();
         if (con && con->isValid()) {

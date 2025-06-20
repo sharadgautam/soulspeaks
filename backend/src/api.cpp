@@ -21,6 +21,8 @@ void ApiHandler::onRequest(const Pistache::Http::Request& request, Pistache::Htt
         handleDidBuy(request, std::move(response));
     } else if (request.resource() == "/api/signup" && request.method() == Pistache::Http::Method::Post) {
         handleSignup(request, std::move(response));
+    } else if (request.resource() == "/api/users" && request.method() == Pistache::Http::Method::Get) {
+        handleListUsers(request, std::move(response));
     } else {
         response.send(Pistache::Http::Code::Not_Found, "Endpoint not found");
     }
@@ -128,5 +130,30 @@ void ApiHandler::handleSignup(const Pistache::Http::Request& request, Pistache::
     } catch (const std::exception& e) {
         std::cerr << "!!! DATABASE ERROR: " << e.what() << std::endl;
         response.send(Pistache::Http::Code::Internal_Server_Error, R"({"success":false,"error":"Signup failed"})");
+    }
+}
+
+void ApiHandler::handleListUsers(const Pistache::Http::Request& /*request*/, Pistache::Http::ResponseWriter response) {
+    try {
+        auto con = db_.getConnection();
+        std::unique_ptr<sql::Statement> stmt(con->createStatement());
+        std::unique_ptr<sql::ResultSet> res(stmt->executeQuery("SELECT customer_id, name, email, verified FROM customers"));
+
+        json users = json::array();
+        while (res->next()) {
+            json user;
+            user["customer_id"] = res->getInt("customer_id");
+            user["name"] = res->getString("name");
+            user["email"] = res->getString("email");
+            user["verified"] = res->getBoolean("verified");
+            users.push_back(user);
+        }
+
+        response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+        response.send(Pistache::Http::Code::Ok, users.dump());
+
+    } catch (const std::exception& e) {
+        std::cerr << "!!! DATABASE ERROR: " << e.what() << std::endl;
+        response.send(Pistache::Http::Code::Internal_Server_Error, R"({"success":false,"error":"Failed to retrieve users"})");
     }
 } 

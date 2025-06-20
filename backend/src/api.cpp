@@ -99,6 +99,7 @@ void ApiHandler::handleSignup(const Pistache::Http::Request& request, Pistache::
         
         response.send(Pistache::Http::Code::Ok, R"({"success":true})");
     } catch (const std::exception& e) {
+        std::cerr << "!!! DATABASE ERROR: " << e.what() << std::endl;
         response.send(Pistache::Http::Code::Internal_Server_Error, R"({"success":false,"error":"Signup failed"})");
     }
 } 

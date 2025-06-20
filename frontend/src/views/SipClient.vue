@@ -1,107 +1,49 @@
 <template>
-  <div class="sip-client-container">
-    <h2>Cloud PBX Web SIP Client</h2>
-    <form @submit.prevent="register">
-      <input v-model="sipUri" placeholder="SIP URI (e.g. sip:1001@sip.example.com)" required />
-      <input v-model="username" placeholder="Username" required />
-      <input v-model="password" type="password" placeholder="Password" required />
-      <input v-model="wsServer" placeholder="WebSocket Server (e.g. wss://sip.example.com:7443)" required />
-      <button type="submit">Register</button>
-    </form>
-    <div v-if="registered" class="call-controls">
-      <input v-model="destination" placeholder="Destination (e.g. 1002)" />
-      <button @click="call">Call</button>
-      <button @click="hangup" :disabled="!inCall">Hangup</button>
-      <p>Call Status: {{ callStatus }}</p>
+  <PageLayout>
+    <div class="sip-client-container">
+      <h2>Cloud PBX WebPhone</h2>
+      <object
+        data="/Browser-Phone/Phone/index.html"
+        type="text/html"
+        style="width:100%;height:700px;border:none;min-height:600px;"
+        aria-label="Siperb Browser Phone"
+      >
+        Your browser does not support embedding the webphone. <a href="/Browser-Phone/Phone/index.html" target="_blank">Open in a new tab</a>.
+      </object>
+      <p class="webphone-note">
+        This webphone is powered by the open-source <a href="https://github.com/Siperb/Browser-Phone" target="_blank" rel="noopener">Siperb Browser-Phone</a> project.<br/>
+        Configure your SIP/FreeSWITCH credentials in the phone UI.
+      </p>
     </div>
-    <p v-if="message" class="message">{{ message }}</p>
-  </div>
+  </PageLayout>
 </template>
 
 <script>
-import { UserAgent, Inviter, Registerer } from 'sip.js';
-
+import PageLayout from '../components/PageLayout.vue';
 export default {
   name: 'SipClient',
-  data() {
-    return {
-      sipUri: '',
-      username: '',
-      password: '',
-      wsServer: '',
-      userAgent: null,
-      registerer: null,
-      inviter: null,
-      registered: false,
-      destination: '',
-      inCall: false,
-      callStatus: 'Idle',
-      message: ''
-    };
-  },
-  methods: {
-    async register() {
-      this.message = '';
-      try {
-        if (this.userAgent) {
-          await this.userAgent.stop();
-        }
-        this.userAgent = new UserAgent({
-          uri: UserAgent.makeURI(this.sipUri),
-          transportOptions: { server: this.wsServer },
-          authorizationUsername: this.username,
-          authorizationPassword: this.password
-        });
-        this.registerer = new Registerer(this.userAgent);
-        await this.userAgent.start();
-        await this.registerer.register();
-        this.registered = true;
-        this.message = 'Registered successfully!';
-      } catch (e) {
-        this.message = 'Registration failed: ' + (e.message || e);
-      }
-    },
-    async call() {
-      if (!this.destination) {
-        this.message = 'Please enter a destination.';
-        return;
-      }
-      try {
-        this.inviter = new Inviter(this.userAgent, UserAgent.makeURI(`sip:${this.destination}@${this.sipUri.split('@')[1]}`));
-        this.callStatus = 'Calling...';
-        await this.inviter.invite();
-        this.inCall = true;
-        this.callStatus = 'In Call';
-      } catch (e) {
-        this.message = 'Call failed: ' + (e.message || e);
-        this.callStatus = 'Idle';
-      }
-    },
-    async hangup() {
-      if (this.inviter) {
-        await this.inviter.cancel();
-        this.inCall = false;
-        this.callStatus = 'Idle';
-      }
-    }
-  }
+  components: { PageLayout }
 };
 </script>
 
 <style scoped>
 .sip-client-container {
-  max-width: 500px;
-  margin: 60px auto;
+  max-width: 900px;
+  margin: 40px auto;
   padding: 2em;
   border: 1px solid #ccc;
-  border-radius: 8px;
+  border-radius: 12px;
   text-align: center;
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(60,60,60,0.08);
 }
-.call-controls {
-  margin-top: 2em;
+.webphone-note {
+  margin-top: 1.5em;
+  color: #555;
+  font-size: 1.1em;
 }
-.message {
-  color: green;
-  margin-top: 1em;
+.webphone-note a {
+  color: #5B2A9D;
+  text-decoration: underline;
 }
 </style> 

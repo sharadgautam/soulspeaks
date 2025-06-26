@@ -8,11 +8,34 @@
 #include "hash.hpp"
 #include <cppconn/prepared_statement.h>
 #include "jwt.h"
+#include <unordered_map>
+#include <mutex>
+#include <chrono>
 
 using json = nlohmann::json;
 
 // Use the same strong secret for both signing and verifying JWTs
 #define SOULSPEAKS_JWT_SECRET "a8f3b2c1d4e5f6g7h8i9j0k1l2m3n4o5"
+
+// In-memory QR token store (thread-safe)
+struct QrTokenInfo {
+    std::string username;
+    std::chrono::steady_clock::time_point expiresAt;
+};
+std::unordered_map<std::string, QrTokenInfo> qrTokenStore;
+std::mutex qrTokenStoreMutex;
+
+std::string generateRandomToken(size_t length = 32) {
+    static const char chars[] =
+        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    thread_local std::mt19937 rg{std::random_device{}()};
+    thread_local std::uniform_int_distribution<> pick(0, sizeof(chars) - 2);
+    std::string s;
+    s.reserve(length);
+    while(length--)
+        s += chars[pick(rg)];
+    return s;
+}
 
 ApiHandler::ApiHandler(Database& db) : db_(db) {}
 
@@ -29,6 +52,10 @@ void ApiHandler::onRequest(const Pistache::Http::Request& request, Pistache::Htt
         handleListUsers(request, std::move(response));
     } else if (request.resource() == "/api/me" && request.method() == Pistache::Http::Method::Get) {
         handleMe(request, std::move(response));
+    } else if (request.resource() == "/api/auth/qr-generate" && request.method() == Pistache::Http::Method::Post) {
+        handleQrGenerate(request, std::move(response));
+    } else if (request.resource() == "/api/auth/app-login" && request.method() == Pistache::Http::Method::Post) {
+        handleAppLogin(request, std::move(response));
     } else {
         response.send(Pistache::Http::Code::Not_Found, "Endpoint not found");
     }
@@ -213,4 +240,103 @@ void ApiHandler::handleMe(const Pistache::Http::Request& request, Pistache::Http
         std::cerr << "!!! DATABASE ERROR: " << e.what() << std::endl;
         response.send(Pistache::Http::Code::Internal_Server_Error, R"({"success":false,"error":"Failed to fetch user info"})");
     }
+}
+
+void ApiHandler::handleQrGenerate(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response) {
+    // Extract JWT from Authorization header
+    auto authHeader = request.headers().tryGetRaw("Authorization");
+    if (!authHeader || !authHeader.get().starts_with("Bearer ")) {
+        response.send(Pistache::Http::Code::Unauthorized, R"({"success":false,"error":"Missing or invalid Authorization header"})");
+        return;
+    }
+    std::string token = authHeader.get().substr(7);
+    std::string username;
+    try {
+        auto decoded = jwt::decode(token);
+        auto verifier = jwt::verify()
+            .allow_algorithm(jwt::algorithm::hs256{SOULSPEAKS_JWT_SECRET})
+            .with_issuer("soulspeaks");
+        verifier.verify(decoded);
+        username = decoded.get_payload_claim("username").as_string();
+    } catch (const std::exception& e) {
+        response.send(Pistache::Http::Code::Unauthorized, R"({"success":false,"error":"Invalid token"})");
+        return;
+    }
+    std::string qrToken = generateRandomToken();
+    auto expiresAt = std::chrono::steady_clock::now() + std::chrono::minutes(2);
+    {
+        std::lock_guard<std::mutex> lock(qrTokenStoreMutex);
+        qrTokenStore[qrToken] = {username, expiresAt};
+    }
+    nlohmann::json res;
+    res["qrToken"] = qrToken;
+    res["success"] = true;
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+    response.send(Pistache::Http::Code::Ok, res.dump());
+}
+
+void ApiHandler::handleAppLogin(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response) {
+    using json = nlohmann::json;
+    auto body = json::parse(request.body(), nullptr, false);
+    if (body.is_discarded()) {
+        response.send(Pistache::Http::Code::Bad_Request, R"({"success":false,"error":"Invalid JSON"})");
+        return;
+    }
+    std::string username;
+    if (body.contains("qrToken")) {
+        // QR login
+        std::string qrToken = body["qrToken"];
+        std::lock_guard<std::mutex> lock(qrTokenStoreMutex);
+        auto it = qrTokenStore.find(qrToken);
+        if (it == qrTokenStore.end() || std::chrono::steady_clock::now() > it->second.expiresAt) {
+            response.send(Pistache::Http::Code::Unauthorized, R"({"success":false,"error":"Invalid or expired QR token"})");
+            return;
+        }
+        username = it->second.username;
+        qrTokenStore.erase(it); // Invalidate token after use
+    } else if (body.contains("username") && body.contains("password")) {
+        // Username/password login (reuse handleLogin logic)
+        std::string uname = body["username"];
+        std::string password = body["password"];
+        try {
+            auto con = db_.getConnection();
+            std::unique_ptr<sql::PreparedStatement> stmt(con->prepareStatement(
+                "SELECT password_hash, salt FROM customers WHERE name = ? AND verified = 1"
+            ));
+            stmt->setString(1, uname);
+            std::unique_ptr<sql::ResultSet> res(stmt->executeQuery());
+            if (res->next()) {
+                std::string db_password_hash = res->getString("password_hash");
+                std::string db_salt = res->getString("salt");
+                std::string provided_password_hash = hashPassword(password, db_salt);
+                if (provided_password_hash == db_password_hash) {
+                    username = uname;
+                } else {
+                    response.send(Pistache::Http::Code::Unauthorized, R"({"success":false,"error":"Invalid credentials"})");
+                    return;
+                }
+            } else {
+                response.send(Pistache::Http::Code::Unauthorized, R"({"success":false,"error":"Invalid credentials"})");
+                return;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "!!! DATABASE ERROR: " << e.what() << std::endl;
+            response.send(Pistache::Http::Code::Internal_Server_Error, R"({"success":false,"error":"Login failed"})");
+            return;
+        }
+    } else {
+        response.send(Pistache::Http::Code::Bad_Request, R"({"success":false,"error":"Missing credentials"})");
+        return;
+    }
+    // Issue JWT
+    auto token = jwt::create()
+        .set_issuer("soulspeaks")
+        .set_type("JWS")
+        .set_payload_claim("username", jwt::claim(username))
+        .set_issued_at(std::chrono::system_clock::now())
+        .set_expires_at(std::chrono::system_clock::now() + std::chrono::hours{24})
+        .sign(jwt::algorithm::hs256{SOULSPEAKS_JWT_SECRET});
+    json resp = {{"success", true}, {"token", token}};
+    response.headers().add<Pistache::Http::Header::ContentType>(MIME(Application, Json));
+    response.send(Pistache::Http::Code::Ok, resp.dump());
 } 

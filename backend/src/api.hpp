@@ -16,4 +16,6 @@ private:
     void handleSignup(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
     void handleListUsers(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
     void handleMe(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
+    void handleAppLogin(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
+    void handleQrGenerate(const Pistache::Http::Request& request, Pistache::Http::ResponseWriter response);
 }; 

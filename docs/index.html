@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SoulSpeaks Backend API Documentation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      background: #f4f7fa;
+      color: #222;
+    }
+    header {
+      background: #2c3e50;
+      color: #fff;
+      padding: 2rem 2rem 1rem 220px;
+      box-shadow: 0 2px 8px rgba(44,62,80,0.08);
+    }
+    header h1 {
+      margin: 0 0 0.5rem 0;
+      font-size: 2.2rem;
+      letter-spacing: 1px;
+    }
+    header p {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #d0d6db;
+    }
+    .container {
+      display: flex;
+      min-height: 100vh;
+    }
+    nav {
+      width: 200px;
+      background: #22313a;
+      color: #fff;
+      padding: 2rem 0 2rem 0;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 10;
+      box-shadow: 2px 0 8px rgba(44,62,80,0.08);
+    }
+    nav h2 {
+      font-size: 1.1rem;
+      margin: 0 0 1.5rem 2rem;
+      color: #f9ca24;
+      letter-spacing: 1px;
+    }
+    nav ul {
+      list-style: none;
+      padding: 0 0 0 2rem;
+      margin: 0;
+    }
+    nav ul li {
+      margin-bottom: 1.2rem;
+    }
+    nav ul li a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 1rem;
+      transition: color 0.2s;
+    }
+    nav ul li a:hover {
+      color: #f9ca24;
+    }
+    main {
+      flex: 1;
+      margin-left: 220px;
+      padding: 2rem 2rem 3rem 2rem;
+      max-width: 900px;
+    }
+    .section {
+      margin-bottom: 3rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(44,62,80,0.08);
+      padding: 1.5rem 2rem;
+      margin-bottom: 2rem;
+      border-left: 6px solid #2980b9;
+      transition: box-shadow 0.2s;
+    }
+    .card:hover {
+      box-shadow: 0 4px 16px rgba(44,62,80,0.13);
+    }
+    .endpoint-title {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      color: #2980b9;
+      font-weight: bold;
+    }
+    .method {
+      display: inline-block;
+      font-weight: bold;
+      padding: 2px 10px;
+      border-radius: 4px;
+      margin-right: 10px;
+      font-size: 0.95em;
+      background: #f9ca24;
+      color: #22313a;
+      letter-spacing: 1px;
+    }
+    .auth {
+      color: #e67e22;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    .success { color: #27ae60; }
+    .fail { color: #c0392b; }
+    .req, .resp { margin-left: 1em; }
+    pre {
+      background: #f4f4f4;
+      padding: 10px 12px;
+      border-radius: 5px;
+      font-size: 0.98em;
+      overflow-x: auto;
+    }
+    ul, ol { margin-left: 1.5em; }
+    footer {
+      background: #2c3e50;
+      color: #fff;
+      text-align: center;
+      padding: 1.2rem 0 1.2rem 220px;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      position: relative;
+      bottom: 0;
+      width: 100%;
+      margin-top: 2rem;
+    }
+    @media (max-width: 900px) {
+      nav, header, footer { padding-left: 0 !important; }
+      nav { position: static; width: 100%; box-shadow: none; }
+      main { margin-left: 0; padding: 1rem; }
+      header, footer { padding: 1rem; }
+    }
+    @media (max-width: 600px) {
+      .card { padding: 1rem; }
+      nav ul { padding-left: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <h2>API Sections</h2>
+    <ul>
+      <li><a href="#auth">Authentication</a></li>
+      <li><a href="#users">User Management</a></li>
+      <li><a href="#dids">DID Management</a></li>
+      <li><a href="#mobile">Mobile & QR Login</a></li>
+      <li><a href="#flow">Auth Flow</a></li>
+      <li><a href="#notes">Notes</a></li>
+    </ul>
+  </nav>
+  <header>
+    <h1>SoulSpeaks Backend API</h1>
+    <p>Base URL: <code>http://&lt;server&gt;:9080</code></p>
+  </header>
+  <div class="container">
+    <main>
+      <section class="section" id="auth">
+        <h2>Authentication</h2>
+        <div class="card">
+          <div class="endpoint-title"><span class="method">POST</span> /api/login</div>
+          <div class="auth">No authentication required</div>
+          <div class="req">
+            <strong>Request JSON:</strong>
+            <pre>{
+  "username": "string",
+  "password": "string"
+}</pre>
+          </div>
+          <div class="resp">
+            <strong>Response JSON:</strong>
+            <pre class="success">{"success": true, "token": "JWT"}</pre>
+            <pre class="fail">{"success": false, "error": "Invalid credentials"}</pre>
+          </div>
+          <p>Login with username and password. Returns a JWT on success.</p>
+        </div>
+        <div class="card">
+          <div class="endpoint-title"><span class="method">POST</span> /api/signup</div>
+          <div class="auth">No authentication required</div>
+          <div class="req">
+            <strong>Request JSON:</strong>
+            <pre>{
+  "username": "string",
+  "email": "string",
+  "password": "string"
+}</pre>
+          </div>
+          <div class="resp">
+            <strong>Response JSON:</strong>
+            <pre class="success">{"success": true}</pre>
+            <pre class="fail">{"success": false, "error": "Signup failed"}</pre>
+          </div>
+          <p>Register a new user account.</p>
+        </div>
+      </section>
+
+      <section class="section" id="users">
+        <h2>User Management</h2>
+        <div class="card">
+          <div class="endpoint-title"><span class="method">GET</span> /api/users</div>
+          <div class="auth">No authentication required</div>
+          <div class="resp">
+            <strong>Response JSON:</strong>
+            <pre>[
+  {
+    "customer_id": 12345678,
+    "name": "username",
+    "email": "user@example.com",
+    "verified": true
+  },
+  ...
+]</pre>
+          </div>
+          <p>Returns a list of all users.</p>
+        </div>
+        <div class="card">
+          <div class="endpoint-title"><span class="method">GET</span> /api/me</div>
+          <div class="auth">Requires JWT</div>
+          <div class="resp">
+            <strong>Response JSON:</strong>
+            <pre class="success">{"username": "string", "email": "string"}</pre>
+            <pre class="fail">{"success": false, "error": "Missing or invalid Authorization header"}</pre>
+          </div>
+          <p>Returns the current user's info (from JWT).</p>
+        </div>
+      </section>
+
+      <section class="section" id="dids">
+        <h2>DID Management</h2>
+        <div class="card">
+          <div class="endpoint-title"><span class="method">POST</span> /api/did/search</div>
+          <div class="auth">No authentication required</div>
+          <div class="resp">
+            <strong>Response JSON:</strong>
+            <pre>{
+  "dids": [
+    {"number": "+1234567890", "country": "US"},
+    {"number": "+1987654321", "country": "US"}
+  ]
+}</pre>
+          </div>
+          <p>Returns a list of available DIDs (dummy data).</p>
+        </div>
+        <div class="card">
+          <div class="endpoint-title"><span class="method">POST</span> /api/did/buy</div>
+          <div class="auth">No authentication required</div>
+          <div class="resp">
+            <strong>Response JSON:</strong>
+            <pre class="success">{"success": true, "number": "+1234567890"}</pre>
+          </div>
+          <p>Buys a DID (dummy implementation, always succeeds).</p>
+        </div>
+      </section>
+
+      <section class="section" id="mobile">
+        <h2>Mobile & QR Login</h2>
+        <div class="card">
+          <div class="endpoint-title"><span class="method">POST</span> /api/auth/qr-generate</div>
+          <div class="auth">Requires JWT</div>
+          <div class="resp">
+            <strong>Response JSON:</strong>
+            <pre class="success">{"success": true, "qrToken": "string"}</pre>
+            <pre class="fail">{"success": false, "error": "Invalid token"}</pre>
+          </div>
+          <p>Generates a one-time QR token for app login. Use the returned <code>qrToken</code> in a QR code for mobile login.</p>
+        </div>
+        <div class="card">
+          <div class="endpoint-title"><span class="method">POST</span> /api/auth/app-login</div>
+          <div class="auth">No authentication required</div>
+          <div class="req">
+            <strong>Request JSON (option 1):</strong>
+            <pre>{
+  "username": "string",
+  "password": "string"
+}</pre>
+            <strong>Request JSON (option 2):</strong>
+            <pre>{
+  "qrToken": "string"
+}</pre>
+          </div>
+          <div class="resp">
+            <strong>Response JSON:</strong>
+            <pre class="success">{"success": true, "token": "JWT"}</pre>
+            <pre class="fail">{"success": false, "error": "Invalid credentials"}</pre>
+            <pre class="fail">{"success": false, "error": "Invalid or expired QR token"}</pre>
+          </div>
+          <p>Login for mobile app. Accepts either username/password or a QR token (from <code>/api/auth/qr-generate</code>).</p>
+        </div>
+      </section>
+
+      <section class="section" id="flow">
+        <h2>Authentication Flow</h2>
+        <div class="card" style="border-left-color:#27ae60;">
+          <ul>
+            <li>Web users log in via <code>/api/login</code> and receive a JWT.</li>
+            <li>To log in on mobile, users can either:
+              <ul>
+                <li>Enter username/password in the app (calls <code>/api/auth/app-login</code>).</li>
+                <li>Scan a QR code from the web dashboard (QR code contains <code>qrToken</code> from <code>/api/auth/qr-generate</code>), which the app sends to <code>/api/auth/app-login</code>.</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section" id="notes">
+        <h2>Notes</h2>
+        <div class="card" style="border-left-color:#e67e22;">
+          <ul>
+            <li>All responses are JSON.</li>
+            <li>JWT tokens expire after 24 hours.</li>
+            <li>QR tokens are valid for 2 minutes and single-use.</li>
+            <li>Some endpoints (like DID search/buy) are currently dummy implementations.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+  </div>
+  <footer>
+    &copy; SoulSpeaks API Documentation &mdash; Generated on <span id="date"></span>
+  </footer>
+  <script>
+    document.getElementById('date').textContent = new Date().toLocaleDateString();
+  </script>
+</body>
+</html> 

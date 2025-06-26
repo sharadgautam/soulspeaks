@@ -13,8 +13,11 @@ include_directories(/usr/include/mysql-cppconn)
 
 # Include directories
 include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
     /usr/local/include
     /usr/include
+    /usr/include/pistache
+    /usr/include/mysql-cppconn
 )
 link_directories(/usr/local/lib /usr/lib/x86_64-linux-gnu)
 
